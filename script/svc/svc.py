@@ -3,12 +3,28 @@
 # @Time : 2024/3/19 21:07
 # @Author : fiv
 
-
-from preprocess import load_dataset
-
 from env import DATA_PATH
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+import librosa
+import numpy as np
+from pathlib import Path
+
+
+def load_dataset(dir_path: Path) -> (np.ndarray, np.ndarray):
+    data_files = list(dir_path.glob("*.wav"))
+    features = []
+    labels = []
+    for file in data_files:
+        label = file.stem.split("_")[0]
+
+        x, sr = librosa.load(file, sr=None)
+        mfccs = librosa.feature.mfcc(y=x, sr=sr, n_mfcc=40)
+        mfccs_scaled = np.mean(mfccs.T, axis=0)
+        features.append(mfccs_scaled)
+        labels.append(label)
+
+    return np.array(features), np.array(labels)
 
 
 def train(x, y):
