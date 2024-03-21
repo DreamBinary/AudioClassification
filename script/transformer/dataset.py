@@ -4,7 +4,6 @@
 # @Author : fiv
 import torch
 from torch.utils.data import Dataset, DataLoader
-
 from script.preprocess import to_fbank
 
 
@@ -24,24 +23,21 @@ class AnimalDataset(Dataset):
 
     def __getitem__(self, idx):
         fbank = to_fbank(self.file_path[idx])
-        if fbank.shape[0] < 1000:
-            padding = torch.zeros(1000 - fbank.shape[0], 40)
-            fbank = torch.cat([fbank, padding], dim=0)
+        length = 512
+        if fbank.shape[0] < length:
+            # repeat fbank to fill length
+            fbank = torch.cat([fbank] * (length // fbank.shape[0] + 1), dim=0)[:length]
         else:
-            start = torch.randint(0, fbank.shape[0] - 1000, (1,))
-            fbank = fbank[start:start + 1000]
+            start = torch.randint(0, fbank.shape[0] - length, (1,))
+            fbank = fbank[start:start + length]
         label = self.file_path[idx].stem.split("_")[0]
         return fbank, self.label2idx[label]
-
-    def shuffle(self):
-        import random
-        random.shuffle(self.file_path)
 
     def idx2label(self, idx):
         return self.idx2label[idx]
 
 
-def get_dataloader(dataset_dir=None, batch_size=1, shuffle=True):
+def get_animal_dataloader(dataset_dir=None, batch_size=8, shuffle=True):
     if dataset_dir is None:
         from env import DATA_PATH
         dataset_dir = DATA_PATH / "animal"
@@ -56,7 +52,38 @@ def get_dataloader(dataset_dir=None, batch_size=1, shuffle=True):
     return train_loader, test_loader
 
 
-if __name__ == '__main__':
-    dataloader = get_dataloader()
-    for x, y in dataloader:
-        print(x.shape, y)
+class DogDataset(Dataset):
+    def __init__(self, file_path):
+        self.label2idx = {"adult": 0, "dogs": 1, "puppy": 2}
+        self.idx2label = {v: k for k, v in self.label2idx.items()}
+        self.file_path = file_path
+
+    def __len__(self):
+        return len(self.file_path)
+
+    def __getitem__(self, idx):
+        fbank = to_fbank(self.file_path[idx])
+        length = 512
+        if fbank.shape[0] < length:
+            # repeat fbank to fill length
+            fbank = torch.cat([fbank] * (length // fbank.shape[0] + 1), dim=0)[:length]
+        else:
+            start = torch.randint(0, fbank.shape[0] - length, (1,))
+            fbank = fbank[start:start + length]
+        label = self.file_path[idx].stem.split("_")[0]
+        return fbank, self.label2idx[label]
+
+    def idx2label(self, idx):
+        return self.idx2label[idx]
+
+
+def get_dog_dataloader(batch_size=8, shuffle=True):
+    from script.util import split_dataset
+    from env import DATA_PATH
+    dataset_dir = DATA_PATH / "dog"
+    train_files, test_files = split_dataset(dataset_dir)
+    train_dataset = DogDataset(train_files)
+    test_dataset = DogDataset(test_files)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+    return train_loader, test_loader

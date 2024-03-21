@@ -4,3 +4,5 @@
 # @Author :fiv
 
 from .log_util import get_log
+
+from .split import split_dataset

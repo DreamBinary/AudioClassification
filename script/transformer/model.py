@@ -2,25 +2,22 @@
 # @FileName : model.py
 # @Time : 2024/3/20 17:48
 # @Author : fiv
-import copy
 import math
-import warnings
-from typing import Optional, Any, Union, Callable
+from typing import Callable
 from typing import Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F, TransformerEncoderLayer, TransformerEncoder
-from torch.nn.init import xavier_uniform_
 from torch.nn.modules.normalization import LayerNorm
 
 
 class Transformer(nn.Module):
-    def __init__(self, n_out=4, wav_length=1000, d_model=40, nhead: int = 8, num_encoder_layers: int = 6,
+    def __init__(self, n_out=4, wav_length=512, d_model=40, nhead: int = 8, num_encoder_layers: int = 6,
                  dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
-                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
+                 layer_norm_eps: float = 1e-5, batch_first: bool = True, norm_first: bool = False,
                  bias: bool = True, device=None, dtype=None):
         super(Transformer, self).__init__()
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -35,23 +32,19 @@ class Transformer(nn.Module):
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.linear = nn.Linear(d_model * wav_length, n_out)
 
-    #     self.init_weights()
-    #
-    # def init_weights(self) -> None:
-    #     initrange = 0.1
-    #     self.embedding.weight.data.uniform_(-initrange, initrange)
-    #     self.linear.bias.data.zero_()
-    #     self.linear.weight.data.uniform_(-initrange, initrange)
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        initrange = 0.1
+        # self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.linear.bias.data.zero_()
+        self.linear.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, x):
-        # x = self.embedding(x)
         x = self.pos_encoder(x)
         x = self.encoder(x)
-        # print(x.shape)
         x = x.view(x.size(0), -1)
-        # print(x.shape)
         x = self.linear(x)
-        # print(x.shape)
         return x
 
 

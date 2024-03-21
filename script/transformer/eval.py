@@ -2,7 +2,6 @@
 # @FileName : eval.py
 # @Time : 2024/3/21 16:31
 # @Author : fiv
-
 import torch
 
 
@@ -18,5 +17,6 @@ def eval(model, dataloader):
             _, predicted = torch.max(output, 1)
             total += y.size(0)
             correct += (predicted == y).sum().item()
+            # print(y, predicted)
     acc = correct / total
     print(f"Accuracy: {acc:.4f}")
