@@ -3,12 +3,14 @@
 # @Time : 2024/3/19 21:07
 # @Author : fiv
 
-from env import DATA_PATH
-from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
+from pathlib import Path
+
 import librosa
 import numpy as np
-from pathlib import Path
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+
+from env import DATA_PATH
 
 
 def load_dataset(dir_path: Path) -> (np.ndarray, np.ndarray):

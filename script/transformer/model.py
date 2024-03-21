@@ -2,23 +2,22 @@
 # @FileName : model.py
 # @Time : 2024/3/20 17:48
 # @Author : fiv
+import copy
 import math
+import warnings
+from typing import Optional, Any, Union, Callable
 from typing import Union
 
-import torch.nn as nn
-import copy
-from typing import Optional, Any, Union, Callable
-
 import torch
-import warnings
+import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F, TransformerEncoderLayer, TransformerEncoder
-from torch.nn.modules.normalization import LayerNorm
 from torch.nn.init import xavier_uniform_
+from torch.nn.modules.normalization import LayerNorm
 
 
 class Transformer(nn.Module):
-    def __init__(self, n_out=4, d_model=40, nhead: int = 8, num_encoder_layers: int = 6,
+    def __init__(self, n_out=4, wav_length=1000, d_model=40, nhead: int = 8, num_encoder_layers: int = 6,
                  dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
                  layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
@@ -34,7 +33,7 @@ class Transformer(nn.Module):
 
         # self.embedding = nn.Embedding(n_out, d_model)
         self.pos_encoder = PositionalEncoding(d_model, dropout)
-        self.linear = nn.Linear(d_model, n_out)
+        self.linear = nn.Linear(d_model * wav_length, n_out)
 
     #     self.init_weights()
     #
@@ -48,10 +47,11 @@ class Transformer(nn.Module):
         # x = self.embedding(x)
         x = self.pos_encoder(x)
         x = self.encoder(x)
-        print(x.shape)
+        # print(x.shape)
         x = x.view(x.size(0), -1)
-        print(x.shape)
+        # print(x.shape)
         x = self.linear(x)
+        # print(x.shape)
         return x
 
 

@@ -4,6 +4,7 @@
 # @Author : fiv
 import torch
 from torch.utils.data import Dataset, DataLoader
+
 from script.preprocess import to_fbank
 
 
@@ -23,25 +24,12 @@ class AnimalDataset(Dataset):
 
     def __getitem__(self, idx):
         fbank = to_fbank(self.file_path[idx])
-        # fbank.shape: [138, 40]
-        print(fbank.shape)
-
         if fbank.shape[0] < 1000:
             padding = torch.zeros(1000 - fbank.shape[0], 40)
-            fbank = torch.cat([fbank, padding], dim=1)
+            fbank = torch.cat([fbank, padding], dim=0)
         else:
-            # random select 1000 frames
             start = torch.randint(0, fbank.shape[0] - 1000, (1,))
-
-        print("fbank.shape:", fbank.shape)
-
-        # fill padding if len(fbank) < 1000
-        # if fbank.shape[1] < 1000:
-        #     padding = torch.zeros(40, 1000 - fbank.shape[1])
-        #     fbank = torch.cat([fbank, padding], dim=1)
-        # else:
-        #     fbank = fbank[:, :1000]
-
+            fbank = fbank[start:start + 1000]
         label = self.file_path[idx].stem.split("_")[0]
         return fbank, self.label2idx[label]
 
@@ -54,9 +42,18 @@ class AnimalDataset(Dataset):
 
 
 def get_dataloader(dataset_dir=None, batch_size=1, shuffle=True):
-    dataset = AnimalDataset(dataset_dir)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-    return dataloader
+    if dataset_dir is None:
+        from env import DATA_PATH
+        dataset_dir = DATA_PATH / "animal"
+
+    train_dir = dataset_dir / "train"
+    test_dir = dataset_dir / "test"
+
+    train = AnimalDataset(train_dir)
+    test = AnimalDataset(test_dir)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=shuffle)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=shuffle)
+    return train_loader, test_loader
 
 
 if __name__ == '__main__':
