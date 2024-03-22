@@ -1,7 +1,7 @@
-import numpy as np
-
 from pathlib import Path
+
 import librosa
+import numpy as np
 
 
 def extract_mel(wav_datadir, output_dir):
@@ -81,7 +81,7 @@ def extract_amptitude(wav_datadir, output_dir):
         # 计算log FBank特征
         y, sr = librosa.load(the_wavpath, sr=32000)  # sr=None表示保持原始采样率
         amp = librosa.stft(y, n_fft=1024, hop_length=256, win_length=1024)
-
+        print(f"--->>> {amp.shape}")
         # 转换为对数刻度
         amp = librosa.power_to_db(amp, ref=np.max)
 
@@ -96,9 +96,9 @@ if __name__ == '__main__':
     ## 提取 hifigan的melspec
 
     ## wav 文件的 数据集的目录
-    src = '/home/ywh/workspace/code/danzi/loushui_shengdata'
+    src = '../../data/animal/all'
 
     ## melspec 文件夹
-    tar = '/home/ywh/workspace/code/danzi/loushui_shengdata_amptitue'
+    tar = './tmp'
 
     extract_amptitude(src, tar)

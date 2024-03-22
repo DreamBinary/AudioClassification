@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
 
-
-
 '''
 模型来自
 https://github.com/jjery2243542/adaptive_voice_conversion
@@ -13,19 +11,19 @@ https://github.com/jjery2243542/adaptive_voice_conversion
 '''
 
 
-
 def pad_layer(inp, layer, pad_type='reflect'):
     kernel_size = layer.kernel_size[0]
     if kernel_size % 2 == 0:
-        pad = (kernel_size//2, kernel_size//2 - 1)
+        pad = (kernel_size // 2, kernel_size // 2 - 1)
     else:
-        pad = (kernel_size//2, kernel_size//2)
+        pad = (kernel_size // 2, kernel_size // 2)
     # padding
     inp = F.pad(inp,
-            pad=pad,
-            mode=pad_type)
+                pad=pad,
+                mode=pad_type)
     out = layer(inp)
     return out
+
 
 def pixel_shuffle_1d(inp, scale_factor=2):
     batch_size, channels, in_width = inp.size()
@@ -36,9 +34,11 @@ def pixel_shuffle_1d(inp, scale_factor=2):
     shuffle_out = shuffle_out.view(batch_size, channels, out_width)
     return shuffle_out
 
+
 def upsample(x, scale_factor=2):
     x_up = F.interpolate(x, scale_factor=scale_factor, mode='nearest')
     return x_up
+
 
 def flatten(x):
     out = x.contiguous().view(x.size(0), x.size(1) * x.size(2))
@@ -51,8 +51,9 @@ def conv_bank(x, module_list, act, pad_type='reflect'):
         out = act(pad_layer(x, layer, pad_type))
         outs.append(out)
     out = torch.cat(outs + [x], dim=1)
-    #print("conv_bank out shape",out.shape)
+    # print("conv_bank out shape",out.shape)
     return out
+
 
 def get_act(act):
     if act == 'relu':
@@ -61,6 +62,7 @@ def get_act(act):
         return nn.LeakyReLU()
     else:
         return nn.ReLU()
+
 
 class MLP(nn.Module):
     def __init__(self, c_in, c_h, n_blocks, act, sn):
@@ -82,11 +84,12 @@ class MLP(nn.Module):
             h = h + y
         return h
 
+
 class SpeakerEncoder(nn.Module):
     def __init__(self, c_in, c_h, c_out, kernel_size,
-            bank_size, bank_scale, c_bank,
-            n_conv_blocks, n_dense_blocks,
-            subsample, act, dropout_rate,num_class):
+                 bank_size, bank_scale, c_bank,
+                 n_conv_blocks, n_dense_blocks,
+                 subsample, act, dropout_rate, num_class):
         super(SpeakerEncoder, self).__init__()
         self.c_in = c_in
         self.c_h = c_h
@@ -97,20 +100,20 @@ class SpeakerEncoder(nn.Module):
         self.subsample = subsample
         self.act = get_act(act)
         self.conv_bank = nn.ModuleList(
-                [nn.Conv1d(c_in, c_bank, kernel_size=k) for k in range(bank_scale, bank_size + 1, bank_scale)])
+            [nn.Conv1d(c_in, c_bank, kernel_size=k) for k in range(bank_scale, bank_size + 1, bank_scale)])
         in_channels = c_bank * (bank_size // bank_scale) + c_in
         self.in_conv_layer = nn.Conv1d(in_channels, c_h, kernel_size=1)
         self.first_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size) for _ \
-                in range(n_conv_blocks)])
+                                                in range(n_conv_blocks)])
         self.second_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size, stride=sub)
-            for sub, _ in zip(subsample, range(n_conv_blocks))])
+                                                 for sub, _ in zip(subsample, range(n_conv_blocks))])
         self.pooling_layer = nn.AdaptiveAvgPool1d(1)
         self.first_dense_layers = nn.ModuleList([nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)])
         self.second_dense_layers = nn.ModuleList([nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)])
         self.output_layer = nn.Linear(c_h, c_out)
         self.dropout_layer = nn.Dropout(p=dropout_rate)
 
-        self.cls_layer  = nn.Linear(c_out,num_class)
+        self.cls_layer = nn.Linear(c_out, num_class)
 
     def conv_blocks(self, inp):
         out = inp
@@ -125,7 +128,7 @@ class SpeakerEncoder(nn.Module):
             if self.subsample[l] > 1:
                 out = F.avg_pool1d(out, kernel_size=self.subsample[l], ceil_mode=True)
             out = y + out
-            #print(out.shape)
+            # print(out.shape)
         return out
 
     def dense_blocks(self, inp):
@@ -142,50 +145,49 @@ class SpeakerEncoder(nn.Module):
         return out
 
     def forward(self, x):
-        #print("--- spk encoder ---")
+        # print("--- spk encoder ---")
         out = conv_bank(x, self.conv_bank, act=self.act)
         # dimension reduction layer
         out = pad_layer(out, self.in_conv_layer)
         out = self.act(out)
         # conv blocks
         out = self.conv_blocks(out)
-    
+
         # avg pooling
         out = self.pooling_layer(out).squeeze(2)
 
-        #print(out.shape)
+        # print(out.shape)
         # dense blocks
         out = self.dense_blocks(out)
 
-        
         out = self.output_layer(out)
-        #print("---")
+        # print("---")
         out = self.cls_layer(out)
         return out
 
     def look_shape_forward(self, x):
         print("--- spk encoder ---")
-        print("输入数据维度:x",x.shape)
+        print("输入数据维度:x", x.shape)
         out = conv_bank(x, self.conv_bank, act=self.act)
         # dimension reduction layer
         out = pad_layer(out, self.in_conv_layer)
         out = self.act(out)
-        print("经过conv bank",out.shape)
+        print("经过conv bank", out.shape)
         # conv blocks
         out = self.conv_blocks(out)
-        print("经过多个卷积层：",out.shape)
+        print("经过多个卷积层：", out.shape)
         # avg pooling
         out = self.pooling_layer(out).squeeze(2)
-        print("经过一个时间维度的池化层：",out.shape)
+        print("经过一个时间维度的池化层：", out.shape)
 
         print(out.shape)
         # dense blocks
         out = self.dense_blocks(out)
-        print("经过多个线性层：",out.shape)
+        print("经过多个线性层：", out.shape)
         out = self.output_layer(out)
-        #print("---")
+        # print("---")
         out = self.cls_layer(out)
-        print("经过分类层：",out.shape)
+        print("经过分类层：", out.shape)
         return out
 
 
@@ -203,17 +205,18 @@ def testmodel():
                                 "c_bank": 128,
                                 "n_conv_blocks": 6,
                                 "n_dense_blocks": 3,
-                                "subsample": [1, 2, 1,2  , 1, 2],  ## 下采样的主要功能：缩小时间帧
+                                "subsample": [1, 2, 1, 2, 1, 2],  ## 下采样的主要功能：缩小时间帧
                                 "act": 'relu',
                                 "dropout_rate": 0,
-                                "num_class":3}
+                                "num_class": 3}
                            }
-    speaker_clsmodel = SpeakerEncoder(**model_params_config['SpeakerEncoder']) ## 模型的定义
-    a = torch.rand(3,513,200) ## 输入 频谱特征 
-    
-    #a = torch.rand(3,25000) ## 时域数据
+    speaker_clsmodel = SpeakerEncoder(**model_params_config['SpeakerEncoder'])  ## 模型的定义
+    a = torch.rand(3, 513, 200)  ## 输入 频谱特征
+
+    # a = torch.rand(3,25000) ## 时域数据
     out = speaker_clsmodel(a)  ## 输入给模型
     out = speaker_clsmodel.look_shape_forward(a)
+
 
 if __name__ == '__main__':
     testmodel()
